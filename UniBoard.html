@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniBoard - University Boarding Finder</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Maps API Script (Optional - if you use JS API for map display) -->
+    <!-- <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMapState"></script> -->
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --text-color: #333;
+            --light-text-color: #555;
+            --bg-light: #f8f9fa;
+            --white-color: #fff;
+            --header-height: 70px;
+            --border-radius-sm: 5px;
+            --border-radius-md: 10px;
+            --border-radius-lg: 15px;
+            --box-shadow-light: 0 2px 10px rgba(0,0,0,0.05);
+            --box-shadow-md: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+            line-height: 1.6; color: var(--text-color); 
+            background: var(--bg-light); /* Lighter overall background for content */
+            min-height: 100vh; padding-top: var(--header-height); 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+        /* Header & Navigation */
+        header { background: var(--white-color); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: var(--box-shadow-light); position: fixed; width: 100%; top: 0; left: 0; z-index: 1000; height: var(--header-height); border-bottom: 1px solid #eee; }
+        header .container { display: flex; justify-content: space-between; align-items: center; height: 100%; }
+        .logo { font-size: 1.7rem; font-weight: 700; color: var(--primary-color); text-decoration: none; display: flex; align-items: center; }
+        .logo i { margin-right: 8px; }
+        .nav-links-container { display: flex; justify-content: center; } /* Desktop: holds nav links */
+        .nav-links { display: flex; list-style: none; gap: 1.5rem; align-items: center; }
+        .nav-links a { text-decoration: none; color: var(--light-text-color); font-weight: 500; transition: color 0.2s ease, border-bottom-color 0.2s ease; padding: 0.5rem 0.25rem; border-bottom: 2px solid transparent; font-size: 0.95rem; }
+        .nav-links a:hover, .nav-links a.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+        .header-actions { display: flex; align-items: center; gap: 0.75rem; /* Reduced gap */ }
+        .auth-buttons { display: flex; gap: 0.75rem; }
+        .btn { padding: 0.6rem 1.25rem; border: none; border-radius: 25px; cursor: pointer; text-decoration: none; font-weight: 500; transition: all 0.25s ease; display: inline-flex; align-items: center; justify-content: center; font-size: 0.9rem; line-height: 1; }
+        .btn i { margin-right: 0.5rem; }
+        .btn-sm { padding: 0.4rem 1rem; font-size: 0.8rem; }
+        .btn-primary { background: linear-gradient(45deg, var(--primary-color), var(--secondary-color)); color: var(--white-color); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 3px 10px rgba(102,126,234,0.3); }
+        .btn-outline { background: transparent; color: var(--primary-color); border: 2px solid var(--primary-color); }
+        .btn-outline:hover { background: var(--primary-color); color: var(--white-color); }
+        .hamburger-icon { display: none; background: none; border: none; color: var(--text-color); font-size: 1.6rem; cursor: pointer; padding: 0.5rem; z-index: 1005; margin-left: 0.5rem; }
+        .user-profile { position: relative; display: inline-block; }
+        .user-profile .btn { padding-right: 1rem; }
+        .user-profile .btn i.fa-caret-down { margin-left: 8px; margin-right:0; }
+        .profile-dropdown { display: none; position: absolute; right: 0; top: calc(100% + 12px); background: var(--white-color); min-width: 230px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); border-radius: var(--border-radius-md); padding: 0.5rem 0; z-index: 1001; animation: fadeInUp 0.2s ease-out; border: 1px solid #eee; }
+        .profile-dropdown a { display: flex; align-items: center; padding: 0.75rem 1.5rem; color: var(--light-text-color); text-decoration: none; transition: background 0.2s ease, color 0.2s ease; font-size: 0.9rem; }
+        .profile-dropdown a i { margin-right: 12px; color: var(--primary-color); width: 18px; text-align: center;}
+        .profile-dropdown a:hover { background: var(--bg-light); color: var(--primary-color); }
+        .profile-dropdown a:hover i { color: var(--secondary-color); }
+        .user-profile:hover .profile-dropdown, .user-profile .btn:focus + .profile-dropdown, .profile-dropdown:hover { display: block; }
+
+        /* Responsive Navbar */
+        @media (max-width: 992px) { 
+            .nav-links {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0;
+                position: fixed;
+                top: var(--header-height);
+                left: 0;
+                width: 100%;
+                height: calc(100vh - var(--header-height));
+                background: rgba(255,255,255,0.99);
+                backdrop-filter: blur(5px);
+                -webkit-backdrop-filter: blur(5px);
+                padding: 1.5rem 0;
+                z-index: 999;
+                border-top: 1px solid #e0e0e0;
+                overflow-y: auto;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
+            .nav-links.active {
+                transform: translateX(0);
+            }
+            .nav-links li { width: 100%; }
+            .nav-links a { display: block; padding: 1rem 2rem; width: 100%; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: 1rem; }
+            .nav-links li:last-child a { border-bottom: none; }
+            .nav-links a:hover, .nav-links a.active { background-color: var(--bg-light); color: var(--primary-color); border-bottom-color: #f0f0f0; }
+            .nav-links a.active { font-weight: 600; }
+            .hamburger-icon { display: block; }
+        }
+
+        /* Main Content & Sections */
+        main { min-height: calc(100vh - var(--header-height)); padding-bottom: 3rem; }
+        .hero { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: var(--white-color); padding: 4rem 20px; text-align: center; }
+        .hero h1 { font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 1rem; animation: fadeInUp 1s ease; }
+        .hero p { font-size: clamp(1rem, 2.5vw, 1.2rem); margin-bottom: 2rem; opacity: 0.9; animation: fadeInUp 1s ease 0.2s both; }
+        .search-section { background: var(--white-color); padding: 2rem; border-radius: var(--border-radius-lg); box-shadow: var(--box-shadow-md); margin: -50px auto 0; max-width: 900px; position: relative; z-index: 10; animation: fadeInUp 1s ease 0.4s both; }
+        .search-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end; }
+        .form-group { display: flex; flex-direction: column; margin-bottom: 1rem; }
+        .form-group:last-child { margin-bottom: 0; }
+        .form-group label { margin-bottom: 0.5rem; font-weight: 500; color: var(--light-text-color); font-size: 0.9rem; }
+        .form-group input, .form-group select, .form-group textarea { padding: 0.75rem; border: 1px solid #ccc; border-radius: var(--border-radius-sm); font-size: 1rem; transition: border-color 0.3s ease, box-shadow 0.3s ease; width: 100%; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(102,126,234,0.25); }
+        .form-group .search-btn { height: auto; padding: 0.75rem; }
+        .search-btn { background: linear-gradient(45deg, var(--primary-color), var(--secondary-color)); color: var(--white-color); border: none; border-radius: var(--border-radius-md); cursor: pointer; font-size: 1rem; font-weight: 500; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; }
+        .search-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
+        .search-btn i { margin-right: 0.5rem; }
+        .page-content { background: var(--white-color); padding: 3rem 0; margin-top: 3rem; border-radius:var(--border-radius-lg); box-shadow: var(--box-shadow-light); }
+        .page-title { text-align: center; margin-bottom: 3rem; }
+        .page-title h2 { font-size: clamp(1.8rem, 4vw, 2.5rem); color: var(--text-color); margin-bottom: 0.5rem; }
+        .page-title p { color: var(--light-text-color); font-size: 1rem; }
+        .listings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-top: 2rem; }
+        .listing-card { background: var(--white-color); border-radius: var(--border-radius-lg); overflow: hidden; box-shadow: var(--box-shadow-light); transition: all 0.3s ease; cursor: pointer; display: flex; flex-direction: column; border: 1px solid #eee; }
+        .listing-card:hover { transform: translateY(-5px); box-shadow: var(--box-shadow-md); }
+        .listing-image { height: 200px; background: #e9ecef; display: flex; align-items: center; justify-content: center; color: #adb5bd; font-size: 3rem; background-size: cover; background-position: center; }
+        .listing-image img { width: 100%; height: 100%; object-fit: cover; }
+        .listing-content { padding: 1.5rem; flex-grow: 1; display: flex; flex-direction: column; }
+        .listing-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-color); }
+        .listing-location { color: var(--light-text-color); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+        .listing-price { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); margin-bottom: 1rem; }
+        .listing-price span { font-size: 0.9rem; color: var(--light-text-color); font-weight: normal;}
+        .listing-features { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .feature-tag { background: #e9ecef; padding: 0.25rem 0.75rem; border-radius: 15px; font-size: 0.8rem; color: var(--light-text-color); }
+        .rating { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; margin-top: auto; }
+        .stars { color: #ffd700; }
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); overflow-y: auto; padding: 20px; align-items:center; justify-content:center;}
+        .modal-content { background: var(--white-color); padding: 2rem; border-radius: var(--border-radius-lg); width: 90%; max-width: 500px; animation: modalSlideIn 0.3s ease; position: relative; max-height: 90vh; overflow-y: auto;}
+        .modal-content.large { max-width: 700px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #eee; }
+        .modal-title { font-size: 1.5rem; font-weight: 600; color: var(--text-color); }
+        .close { font-size: 2rem; cursor: pointer; color: #aaa; transition: color 0.3s ease; line-height: 1; background:none; border:none;}
+        .close:hover { color: var(--text-color); }
+        .map-container { min-height: 300px; background: var(--bg-light); border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; margin: 1rem 0; color: var(--light-text-color); border: 1px solid #eee; padding: 1rem; }
+        .embedded-map-container iframe { border: 0; border-radius: var(--border-radius-md); width: 100% !important; height: 300px !important; } 
+        .admin-panel { background: var(--white-color); margin: 2rem 0; border-radius: var(--border-radius-lg); padding: 2rem; box-shadow: var(--box-shadow-md); }
+        .admin-tabs { display: flex; border-bottom: 2px solid #f0f0f0; margin-bottom: 2rem; overflow-x: auto; }
+        .admin-tab { padding: 1rem 1.5rem; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s ease; color: var(--light-text-color); white-space: nowrap; }
+        .admin-tab.active { border-bottom-color: var(--primary-color); color: var(--primary-color); font-weight: bold; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .filters { background: var(--white-color); padding: 1.5rem; border-radius: var(--border-radius-lg); margin-bottom: 2rem; box-shadow: var(--box-shadow-light); }
+        .filter-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end; }
+        .notification { position: fixed; top: calc(var(--header-height) + 10px); right: 20px; padding: 15px 25px; border-radius: var(--border-radius-md); color: var(--white-color); z-index: 3000; box-shadow: 0 5px 15px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.5s ease, transform 0.5s ease; transform: translateX(100%); min-width: 250px; }
+        .notification.success { background-color: #28a745; } .notification.error { background-color: #dc3545; } .notification.warning { background-color: #ffc107; color: var(--text-color); } .notification.info { background-color: #17a2b8; }
+        .notification.show { opacity: 1; transform: translateX(0); }
+        .admin-table-wrapper { overflow-x: auto; } 
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; min-width: 700px; }
+        .admin-table th, .admin-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #dee2e6; white-space: nowrap; }
+        .admin-table th:nth-child(2), .admin-table td:nth-child(2), .admin-table th:nth-child(5), .admin-table td:nth-child(5) { white-space: normal; }
+        .admin-table th { background-color: var(--bg-light); font-weight: 600; }
+        .admin-table tbody tr:hover { background-color: #f1f3f5; }
+        .admin-table .actions-cell button { margin-right: 0.5rem; padding: 0.3rem 0.8rem; font-size: 0.85rem; }
+        .admin-table .status-badge { padding: 0.25rem 0.75rem; border-radius: 15px; font-size: 0.8rem; color: var(--white-color); display: inline-block; }
+        .admin-table .status-badge.available, .admin-table .status-badge.approved  { background: #28a745; }
+        .admin-table .status-badge.unavailable, .admin-table .status-badge.rejected { background: #dc3545; }
+        .admin-table .status-badge.pending { background: #ffc107; color: var(--text-color); }
+        .admin-table .role-badge { padding: 0.25rem 0.75rem; border-radius: 15px; font-size: 0.8rem; color: var(--white-color); display: inline-block; }
+        .admin-table .role-badge.admin { background: #6f42c1; } .admin-table .role-badge.landlord { background: #20c997; } .admin-table .role-badge.student { background: #0dcaf0; } 
+        #listingDetailContent h3, #listingDetailContent h4 { color: var(--text-color); margin-bottom: 0.75rem; font-weight: 600; }
+        #listingDetailContent p { margin-bottom: 0.75rem; line-height: 1.7; }
+        #listingDetailContent .listing-image { margin-bottom: 1rem; }
+        #listingDetailContent .stars { margin-bottom: 0.5rem; }
+        .review-item { border-bottom: 1px solid #eee; padding: 1rem 0; }
+        .review-item:last-child { border-bottom: none; }
+        .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .review-header strong { font-size: 1.05rem; }
+        .review-comment { margin-bottom: 0.5rem; }
+        .review-date { font-size: 0.85rem; color: var(--light-text-color); }
+        .review-form-container { margin-top: 2rem; padding: 1.5rem; background: var(--bg-light); border-radius: var(--border-radius-md); }
+        .review-form-container h5 { margin-bottom: 1rem; font-size: 1.2rem; font-weight: 600; }
+        .review-form-container .form-group { margin-bottom: 1rem; }
+        .review-form-container .form-group select, .review-form-container .form-group textarea { width: 100%; }
+        .amenities-grid label { display: flex; align-items: center; font-size: 0.9rem; }
+        .amenities-grid input[type="checkbox"] { margin-right: 0.5rem; transform: scale(0.9); }
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2rem; } .hero p { font-size: 1.1rem;}
+            .search-form { grid-template-columns: 1fr; } .search-btn { width: 100%; }
+            .modal-content, .modal-content.large { margin: 20px auto; width: 95%; padding: 1.5rem; } 
+            .modal-title { font-size: 1.3rem; }
+            .listings-grid { grid-template-columns: 1fr; }
+            .auth-buttons { gap: 0.5rem; }
+            .auth-buttons .btn, .user-profile .btn { padding: 0.4rem 1rem; font-size: 0.8rem; }
+            .filter-row, .contact-grid { grid-template-columns: 1fr; }
+            .page-title h2 { font-size: 2rem; }
+        }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-30px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <a href="#" class="logo" onclick="showPage('home')"><i class="fas fa-home"></i> UniBoard</a>
+            <nav class="nav-links-container"><ul class="nav-links" id="navLinks">
+                <li><a href="#" class="active" onclick="showPage('home')">Home</a></li>
+                <li><a href="#" onclick="showPage('listings')">Listings</a></li>
+                <li><a href="#" onclick="showPage('about')">About</a></li>
+                <li><a href="#" onclick="showPage('contact')">Contact</a></li>
+            </ul></nav>
+            <div class="header-actions">
+                <div class="auth-buttons" id="authButtons">
+                    <a href="#" class="btn btn-outline" onclick="showModal('loginModal')">Login</a>
+                    <a href="#" class="btn btn-primary" onclick="showModal('registerModal')">Sign Up</a>
+                </div>
+                <div class="user-profile" id="userProfile" style="display: none;">
+                    <a href="#" class="btn btn-primary"><i class="fas fa-user"></i> <span id="userName">User</span> <i class="fas fa-caret-down"></i></a>
+                    <div class="profile-dropdown">
+                        <a href="#" onclick="showPage('profile')"><i class="fas fa-user-circle"></i> Profile</a>
+                        <a href="#" onclick="showPage('my-listings')" id="myListingsLink"><i class="fas fa-list-alt"></i> My Listings</a>
+                        <a href="#" onclick="showPage('admin')" id="adminLink" style="display: none;"><i class="fas fa-user-shield"></i> Admin Panel</a>
+                        <a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </div>
+                <button class="hamburger-icon" id="hamburgerIcon" aria-label="Toggle navigation" aria-expanded="false"><i class="fas fa-bars"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <div id="homePage" class="page"><section class="hero"><div class="container"><h1>Find Your Perfect University Boarding</h1><p>Discover comfortable and affordable boarding options near your university</p></div></section><section class="container"><div class="search-section"><form class="search-form" onsubmit="searchListings(event)"><div class="form-group"><label for="location">Location</label><input type="text" id="location" placeholder="University or area"></div><div class="form-group"><label for="priceRange">Price Range ($/month)</label><select id="priceRange"><option value="">Any Price</option><option value="0-50">Under $50</option><option value="50-100">$50 - $100</option><option value="100-150">$100 - $150</option><option value="150-99999">$150+</option></select></div><div class="form-group"><label for="gender">Gender</label><select id="gender"><option value="">Any</option><option value="male">Male Only</option><option value="female">Female Only</option><option value="mixed">Mixed</option></select></div><div class="form-group"><button type="submit" class="search-btn"><i class="fas fa-search"></i> Search</button></div></form></div></section><section class="page-content"><div class="container"><div class="page-title"><h2>Featured Listings</h2><p>Handpicked boarding options for students</p></div><div class="listings-grid" id="featuredListings"><p>Loading featured listings...</p></div></div></section></div>
+        <div id="listingsPage" class="page" style="display: none;"><section class="page-content"><div class="container"><div class="page-title"><h2>All Boarding Listings</h2><p>Find your ideal accommodation</p></div><div class="filters"><div class="filter-row"><div class="form-group"><label for="filterSearchTerm">Search Term</label><input type="text" id="filterSearchTerm" placeholder="Keywords..." oninput="applyFilters()"></div><div class="form-group"><label for="sortBy">Sort By</label><select id="sortBy" onchange="applyFilters()"><option value="newest">Newest</option><option value="price_asc">Price Low-High</option><option value="price_desc">Price High-Low</option><option value="rating_desc">Highest Rated</option></select></div><div class="form-group"><label for="filterGenderPage">Gender</label><select id="filterGenderPage" onchange="applyFilters()"><option value="">All</option><option value="male">Male</option><option value="female">Female</option><option value="mixed">Mixed</option></select></div><div class="form-group"><label for="filterAmenities">Amenities</label><select id="filterAmenities" onchange="applyFilters()"><option value="">All</option><option value="wifi">WiFi</option><option value="meals">Meals</option><option value="laundry">Laundry</option><option value="parking">Parking</option><option value="ac">A/C</option><option value="gym">Gym</option></select></div></div></div><div class="listings-grid" id="allListings"><p>Loading listings...</p></div></div></section></div>
+        <div id="aboutPage" class="page" style="display: none;"><section class="page-content"><div class="container"><div class="page-title"><h2>About UniBoard</h2><p>Connecting students with quality boarding options</p></div><div style="max-width: 800px; margin: 0 auto; text-align: center;"><p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">UniBoard is the leading platform for university students to find safe, comfortable, and affordable boarding accommodations. We connect students with verified landlords and provide a seamless experience for both parties. Our mission is to make the search for student housing easy, transparent, and secure.</p><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-top: 3rem;"><div style="text-align: center; padding:1.5rem; background: var(--bg-light); border-radius:var(--border-radius-md);"><i class="fas fa-shield-alt" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 1rem;"></i><h3>Verified Listings</h3><p>Properties reviewed for authenticity and safety.</p></div><div style="text-align: center; padding:1.5rem; background: var(--bg-light); border-radius:var(--border-radius-md);"><i class="fas fa-map-marker-alt" style="font-size: 3rem; color: var(--secondary-color); margin-bottom: 1rem;"></i><h3>Prime Locations</h3><p>Close to universities and public transport.</p></div><div style="text-align: center; padding:1.5rem; background: var(--bg-light); border-radius:var(--border-radius-md);"><i class="fas fa-handshake" style="font-size: 3rem; color: #28a745; margin-bottom: 1rem;"></i><h3>Trusted Community</h3><p>Honest reviews from real students.</p></div></div></div></div></section></div>
+        <div id="contactPage" class="page" style="display: none;"><section class="page-content"><div class="container"><div class="page-title"><h2>Contact Us</h2><p>Get in touch with our team</p></div><div class="contact-grid" style="display: grid; grid-template-columns:1fr 1fr; gap: 3rem; max-width: 1000px; margin: 0 auto;"><div style="background: var(--bg-light); padding: 2rem; border-radius: var(--border-radius-lg);"><h3 style="margin-bottom: 1.5rem; text-align:center;">Send us a Message</h3><form onsubmit="submitContact(event)" id="contactForm"><div class="form-group" style="margin-bottom:1rem;"><label for="contactName">Name</label><input type="text" id="contactName" required></div><div class="form-group" style="margin-bottom:1rem;"><label for="contactEmail">Email</label><input type="email" id="contactEmail" required></div><div class="form-group" style="margin-bottom:1rem;"><label for="contactSubject">Subject</label><input type="text" id="contactSubject" required></div><div class="form-group" style="margin-bottom:1.5rem;"><label for="contactMessage">Message</label><textarea id="contactMessage" rows="5" required style="width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: var(--border-radius-sm); resize: vertical;"></textarea></div><button type="submit" class="btn btn-primary" style="width:100%;">Send Message</button></form></div><div style="background: var(--bg-light); padding: 2rem; border-radius: var(--border-radius-lg);"><h3 style="margin-bottom: 1.5rem; text-align:center;">Our Location & Details</h3><div class="map-container"><div style="text-align: center; width:100%; height:100%;"><iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.521260322838!2d106.8249641147079!3d-6.194420195512077!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f424b2e3b1ad%3A0x4e9c323120e64d23!2sNational%20Monument!5e0!3m2!1sen!2sid!4v1607093277508!5m2!1sen!2sid" width="100%" height="100%" frameborder="0" style="border:0; border-radius:var(--border-radius-md);" allowfullscreen="" aria-hidden="false" tabindex="0"></iframe></div></div><div style="margin-top: 2rem; text-align:center;"><h4 style="margin-bottom: 1rem;">Contact Information</h4><p><i class="fas fa-envelope"></i> info@uniboard.example.com</p><p><i class="fas fa-phone"></i> +1 (555) 123-4567</p><p><i class="fas fa-mobile-alt"></i> +1 (555) 987-6543</p><p><i class="fas fa-map-marker-alt"></i> 123 University Ave, Student City, SC 12345</p></div></div></div></div></section></div>
+        <div id="adminPage" class="page" style="display: none;"><section class="page-content"><div class="container"><div class="page-title"><h2>Admin Panel</h2><p>Manage site content and users</p></div><div class="admin-panel"><div class="admin-tabs"><div class="admin-tab active" onclick="showAdminTab(event, 'listings')">Listings</div><div class="admin-tab" onclick="showAdminTab(event, 'users')">Users</div><div class="admin-tab" onclick="showAdminTab(event, 'reviews')">Reviews</div></div><div id="adminListingsContent" class="tab-content active"><h3>Listing Management</h3><button class="btn btn-primary" style="margin-bottom:1.5rem;" onclick="showModal('addListingModal')"><i class="fas fa-plus"></i> Add Listing</button><div id="adminListingsList" class="admin-table-wrapper"><p>Loading...</p></div></div><div id="adminUsersContent" class="tab-content"><h3>User Management</h3><div id="adminUsersList" class="admin-table-wrapper"><p>Loading...</p></div></div><div id="adminReviewsContent" class="tab-content"><h3>Review Management</h3><div id="adminReviewsList" class="admin-table-wrapper"><p>Loading...</p></div></div></div></div></section></div>
+        <div id="profilePage" class="page" style="display: none;"><section class="page-content"><div class="container"><div class="page-title"><h2>User Profile</h2></div><div id="userProfileContent" style="background: var(--bg-light); padding: 2rem; border-radius: var(--border-radius-lg); max-width: 700px; margin: 0 auto;"><p>Loading profile...</p></div></div></section></div>
+        <div id="my-listingsPage" class="page" style="display: none;"><section class="page-content"><div class="container"><div class="page-title"><h2>My Listings</h2><p>Manage your properties</p></div><div id="myListingsContentContainer" style="background: var(--bg-light); padding: 2rem; border-radius: var(--border-radius-lg);"><button class="btn btn-primary" style="margin-bottom:1.5rem;" onclick="showModal('addListingModal')"><i class="fas fa-plus"></i> Add Listing</button><div id="myListingsGrid"><p>Loading...</p></div></div></div></section></div>
+    </main>
+
+    <!-- Modals -->
+    <div id="loginModal" class="modal"><div class="modal-content"><div class="modal-header"><h2 class="modal-title">Login</h2><button class="close" onclick="closeModal('loginModal')" aria-label="Close modal">×</button></div><form onsubmit="handleLogin(event)" id="loginForm"><div class="form-group"><label for="loginEmail">Email</label><input type="email" id="loginEmail" required></div><div class="form-group"><label for="loginPassword">Password</label><input type="password" id="loginPassword" required></div><button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">Login</button></form><p style="text-align:center;margin-top:1.5rem;font-size:0.9rem;">No account? <a href="#" style="color:var(--primary-color);font-weight:500;" onclick="closeModal('loginModal'); showModal('registerModal');">Sign up</a></p></div></div>
+    <div id="registerModal" class="modal"><div class="modal-content"><div class="modal-header"><h2 class="modal-title">Sign Up</h2><button class="close" onclick="closeModal('registerModal')" aria-label="Close modal">×</button></div><form onsubmit="handleRegister(event)" id="registerForm"><div class="form-group"><label for="registerName">Full Name</label><input type="text" id="registerName" required></div><div class="form-group"><label for="registerEmail">Email</label><input type="email" id="registerEmail" required></div><div class="form-group"><label for="registerPassword">Password</label><input type="password" id="registerPassword" required></div><div class="form-group"><label for="registerContactNumber">Contact Number (Optional)</label><input type="tel" id="registerContactNumber" placeholder="e.g., +15551234567"></div><div class="form-group"><label for="registerUserType">I am a:</label><select id="registerUserType" required><option value="">Select Type</option><option value="student">Student</option><option value="landlord">Landlord</option></select></div><button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">Sign Up</button></form><p style="text-align:center;margin-top:1.5rem;font-size:0.9rem;">Have an account? <a href="#" style="color:var(--primary-color);font-weight:500;" onclick="closeModal('registerModal'); showModal('loginModal');">Login</a></p></div></div>
+    <div id="listingDetailModal" class="modal"><div class="modal-content large"><div class="modal-header"><h2 class="modal-title" id="detailModalTitle">Listing Details</h2><button class="close" onclick="closeModal('listingDetailModal')" aria-label="Close modal">×</button></div><div id="listingDetailContent"><p>Loading...</p></div></div></div>
+    <div id="addListingModal" class="modal"><div class="modal-content large"><div class="modal-header"><h2 class="modal-title">Add New Listing</h2><button class="close" onclick="closeModal('addListingModal')" aria-label="Close modal">×</button></div><form onsubmit="handleAddListing(event)" id="addListingForm"><div class="form-group"><label for="addListingTitle">Title</label><input type="text" id="addListingTitle" name="title" required></div><div class="form-group"><label for="addListingLocation">Full Address</label><input type="text" id="addListingLocation" name="location" required></div><div class="form-group"><label for="addListingCity">City</label><input type="text" id="addListingCity" name="city" required></div><div class="form-group"><label for="addListingPrice">Price ($/month)</label><input type="number" id="addListingPrice" name="price" min="0" step="1" required></div><div class="form-group"><label for="addListingGender">Gender Preference</label><select id="addListingGender" name="gender_preference" required><option value="">Select</option><option value="male">Male Only</option><option value="female">Female Only</option><option value="mixed">Mixed/Any</option></select></div><div class="form-group"><label for="addListingDescription">Description</label><textarea id="addListingDescription" name="description" rows="4" style="width:100%;padding:0.75rem;border:1px solid #ccc;border-radius:var(--border-radius-sm);resize:vertical;" required></textarea></div><div class="form-group"><label>Amenities</label><div class="amenities-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0.75rem;margin-top:0.5rem;padding:0.5rem;border:1px solid #eee;border-radius:var(--border-radius-sm);"><label><input type="checkbox" name="amenities[]" value="wifi"> WiFi</label><label><input type="checkbox" name="amenities[]" value="meals"> Meals</label><label><input type="checkbox" name="amenities[]" value="laundry"> Laundry</label><label><input type="checkbox" name="amenities[]" value="parking"> Parking</label><label><input type="checkbox" name="amenities[]" value="ac"> A/C</label><label><input type="checkbox" name="amenities[]" value="gym"> Gym</label><label><input type="checkbox" name="amenities[]" value="kitchen"> Kitchen</label><label><input type="checkbox" name="amenities[]" value="furnished"> Furnished</label></div></div><div class="form-group"><label for="addListingMapLink">Google Maps Link or Embed Code (Optional)</label><textarea id="addListingMapLink" name="map_link_or_embed" rows="3" style="width:100%;padding:0.75rem;border:1px solid #ccc;border-radius:var(--border-radius-sm);resize:vertical;" placeholder="Paste a share link or full <iframe> embed code."></textarea><small>Example Share Link: https://maps.app.goo.gl/xxxxxx<br>Example Embed: <iframe src="https://..." ...></iframe></small></div><div class="form-group"><label for="addListingImages">Listing Images (Select up to 5)</label><input type="file" id="addListingImages" name="images[]" multiple accept="image/png,image/jpeg,image/webp"><small>Max 2MB per file. Rec: 800x600px. Max 5 files.</small><div id="imagePreviewContainer" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;"></div></div><button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">Add Listing</button></form></div></div>
+
+    <script>
+        // --- Start of JS ---
+        const config = {
+            currencySymbol: 'LKR', // Change this to your desired symbol (€, $, £, etc.)
+            currencyCode: 'LKR'    // Change this to the corresponding code (EUR, USD, GBP, etc.)
+        };
+        
+        const API_BASE_URL = 'api'; 
+        const appState = { currentUser: null, allListingsData: [], displayedListings: [], currentPage: 'home', googleMapsReady: false };
+
+        async function apiRequest(endpoint, method = 'GET', body = null, isFormData = false) {
+            const options = { method, headers: {} };
+            if (body) {
+                if (isFormData) { options.body = body; } 
+                else { options.headers['Content-Type'] = 'application/json'; options.body = JSON.stringify(body); }
+            }
+            try {
+                const response = await fetch(`${API_BASE_URL}/${endpoint}`, options);
+                const responseText = await response.text(); 
+
+                if (!response.ok) {
+                    let errorData = null;
+                    try { errorData = JSON.parse(responseText); } 
+                    catch (e) { 
+                        console.error("Non-JSON server error response text:", responseText);
+                        errorData = { message: responseText.substring(0, 250) + "..." || response.statusText || `HTTP error! status: ${response.status}` };
+                    }
+                    const errorMessage = (errorData && errorData.message) ? errorData.message : (responseText || response.statusText || `HTTP error! status: ${response.status}`);
+                    console.error(`API Error ${response.status}:`, errorMessage, errorData);
+                    throw new Error(errorMessage);
+                }
+                if (response.status === 204) return { success: true, data: null };
+                try { return JSON.parse(responseText); } 
+                catch (e) { console.error("Failed to parse successful response as JSON. Text was:", responseText); throw new Error("Received malformed data from server."); }
+            } catch (error) {
+                console.error('API Request Failed (Overall Catch):', error.message, error);
+                showNotification(error.message || 'An unknown error occurred. Check console.', 'error');
+                throw error; 
+            }
+        }
+
+        async function initApp() {
+            updateCurrencyDisplay();
+            await fetchCurrentUser(); 
+            await fetchAllListings(); 
+            displayFeaturedListings(); 
+            showPage('home'); 
+        }
+
+        async function fetchCurrentUser() {
+            try {
+                const response = await apiRequest('auth/check_session.php');
+                appState.currentUser = (response && response.success && response.data) ? response.data : null;
+            } catch (error) { appState.currentUser = null; }
+            updateAuthUI();
+        }
+
+        async function fetchAllListings() {
+            try {
+                const response = await apiRequest('listings/read.php'); 
+                if (response && response.success && Array.isArray(response.data)) {
+                    appState.allListingsData = response.data.map(l => ({
+                        ...l, price: parseFloat(l.price), 
+                        amenities: l.amenities ? l.amenities.split(',') : [], 
+                        rating: parseFloat(l.average_rating || 0),
+                        reviews: parseInt(l.review_count || 0),
+                        datePosted: new Date(l.created_at),
+                        map_link_or_embed: l.map_link_or_embed,
+                        latitude: l.latitude,
+                        longitude: l.longitude
+                    }));
+                    appState.displayedListings = [...appState.allListingsData]; 
+                    if (appState.currentPage === 'listings') renderAllListingsPage();
+                    if (appState.currentPage === 'home') displayFeaturedListings();
+                } else {
+                    appState.allListingsData = []; appState.displayedListings = [];
+                }
+            } catch (error) { /* Handled by apiRequest */ }
+        }
+
+        const hamburgerIcon = document.getElementById('hamburgerIcon');
+        const navLinks = document.getElementById('navLinks');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer'); 
+        const addListingImagesInput = document.getElementById('addListingImages'); 
+
+
+        if (hamburgerIcon && navLinks) {
+            hamburgerIcon.addEventListener('click', () => {
+                const isActive = navLinks.classList.toggle('active');
+                hamburgerIcon.setAttribute('aria-expanded', isActive);
+                hamburgerIcon.innerHTML = isActive ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+            });
+            navLinks.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => { 
+                    if (navLinks.classList.contains('active') && link.getAttribute('onclick')?.includes('showPage')) {
+                        navLinks.classList.remove('active');
+                        hamburgerIcon.setAttribute('aria-expanded', 'false');
+                        hamburgerIcon.innerHTML = '<i class="fas fa-bars"></i>';
+                    }
+                });
+            });
+        }
+        
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => page.style.display = 'none');
+            const targetPage = document.getElementById(pageId + 'Page');
+            if (targetPage) { targetPage.style.display = 'block'; appState.currentPage = pageId; window.scrollTo(0,0); } 
+            
+            document.querySelectorAll('#navLinks a').forEach(link => link.classList.remove('active'));
+            const activeLink = Array.from(document.querySelectorAll('#navLinks a')).find(link => link.getAttribute('onclick')?.includes(`showPage('${pageId}')`));
+            if (activeLink) activeLink.classList.add('active');
+
+            if (navLinks && navLinks.classList.contains('active')) { 
+                navLinks.classList.remove('active');
+                if (hamburgerIcon) { hamburgerIcon.setAttribute('aria-expanded', 'false'); hamburgerIcon.innerHTML = '<i class="fas fa-bars"></i>';}
+            }
+
+            if (pageId === 'listings' ) renderAllListingsPage(); 
+            if (pageId === 'admin' && appState.currentUser?.role === 'admin') loadAdminData();
+            if (pageId === 'my-listings' && appState.currentUser?.role === 'landlord') loadMyListings();
+            if (pageId === 'profile') loadUserProfile();
+        }
+
+        function showModal(modalId) { 
+            const modal = document.getElementById(modalId);
+            if(modal) modal.style.display = 'flex'; 
+        }
+        function closeModal(modalId) { 
+            const modal = document.getElementById(modalId);
+            if(modal) {
+                modal.style.display = 'none'; 
+                const form = modal.querySelector('form');
+                if (form) form.reset();
+                if (modalId === 'addListingModal' && imagePreviewContainer) { 
+                    imagePreviewContainer.innerHTML = ''; 
+                    if(addListingImagesInput) addListingImagesInput.value = ""; 
+                }
+                if (modalId === 'listingDetailModal') {
+                    delete modal.dataset.currentListingId; 
+                    const mapDiv = document.getElementById('listingMapDiv'); 
+                    if(mapDiv) mapDiv.innerHTML = '<p>Loading map...</p>'; 
+                }
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            try {
+                const response = await apiRequest('auth/login.php', 'POST', { email, password });
+                if (response.success && response.data) {
+                    appState.currentUser = response.data;
+                    updateAuthUI(); closeModal('loginModal'); showNotification('Login successful!', 'success');
+                    await fetchAllListings(); 
+                    if (appState.currentUser.role === 'admin') showPage('admin');
+                    else if (appState.currentUser.role === 'landlord') showPage('my-listings');
+                    else showPage('home'); 
+                } else { showNotification(response.message || 'Login failed.', 'error'); }
+            } catch (error) { /* Handled */ }
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const role = document.getElementById('registerUserType').value;
+            const contactNumber = document.getElementById('registerContactNumber').value; 
+            try {
+                const response = await apiRequest('auth/register.php', 'POST', { name, email, password, role, contact_number: contactNumber });
+                if (response.success && response.data) {
+                    appState.currentUser = response.data; 
+                    updateAuthUI(); closeModal('registerModal'); showNotification('Registration successful!', 'success');
+                    await fetchAllListings();
+                     if (role === 'landlord') showPage('my-listings'); else showPage('home');
+                } else { showNotification(response.message || 'Registration failed.', 'error'); }
+            } catch (error) { /* Handled */ }
+        }
+
+        async function logout() {
+            try { await apiRequest('auth/logout.php', 'POST'); } 
+            catch(error) { console.error("Logout API call failed:", error); }
+            appState.currentUser = null; updateAuthUI(); 
+            await fetchAllListings(); 
+            showPage('home'); 
+            showNotification('Logged out successfully!', 'success');
+        }
+
+        function updateAuthUI() {
+            const authButtons = document.getElementById('authButtons');
+            const userProfileDiv = document.getElementById('userProfile');
+            const adminLink = document.getElementById('adminLink');
+            const myListingsLink = document.getElementById('myListingsLink');
+            if (appState.currentUser) {
+                authButtons.style.display = 'none'; userProfileDiv.style.display = 'block'; 
+                document.getElementById('userName').textContent = appState.currentUser.name.split(' ')[0]; 
+                adminLink.style.display = appState.currentUser.role === 'admin' ? 'flex' : 'none';
+                myListingsLink.style.display = appState.currentUser.role === 'landlord' ? 'flex' : 'none';
+            } else {
+                authButtons.style.display = 'flex'; userProfileDiv.style.display = 'none';
+                adminLink.style.display = 'none'; myListingsLink.style.display = 'none';
+            }
+        }
+
+        function displayFeaturedListings() {
+            const container = document.getElementById('featuredListings'); if (!container) return;
+            container.innerHTML = ''; 
+            const featured = [...appState.allListingsData].filter(l => l.status === 'available').sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 3);
+            if (featured.length > 0) { container.innerHTML = featured.map(listing => createListingCard(listing)).join(''); }
+            else if (appState.allListingsData.filter(l => l.status === 'available').length > 0) { container.innerHTML = appState.allListingsData.filter(l=>l.status === 'available').slice(0,3).map(listing => createListingCard(listing)).join(''); }
+            else { container.innerHTML = '<p>No featured listings available at the moment.</p>'; }
+        }
+        
+        function renderAllListingsPage() {
+            const container = document.getElementById('allListings'); if (!container) return;
+            container.innerHTML = ''; 
+            const availableListings = appState.displayedListings.filter(l => l.status === 'available');
+            if (availableListings.length > 0) { container.innerHTML = availableListings.map(listing => createListingCard(listing)).join(''); }
+            else { container.innerHTML = '<p style="text-align: center; color: #666; font-size: 1.1rem;">No listings found matching your criteria.</p>'; }
+        }
+
+        function createListingCard(listing) {
+            const amenityTags = Array.isArray(listing.amenities) ? listing.amenities.map(amenity => `<span class="feature-tag">${formatAmenity(amenity)}</span>`).join('') : '';
+            const imageHtml = listing.primary_image_url ? `<img src="${listing.primary_image_url.startsWith('http') ? '' : ''}${listing.primary_image_url}" alt="${listing.title}">` : '<i class="fas fa-home"></i>';
+            return `
+                <div class="listing-card" onclick="showListingDetail(${listing.id})">
+                    <div class="listing-image">${imageHtml}</div>
+                    <div class="listing-content">
+                        <h3 class="listing-title">${listing.title}</h3>
+                        <div class="listing-location"><i class="fas fa-map-marker-alt"></i> ${listing.location || 'N/A'}, ${listing.city || ''}</div>
+                        <div class="listing-price">${config.currencySymbol}${listing.price}<span>/month</span></div>
+                        <div class="listing-features">${amenityTags}</div>
+                        <div class="rating"><div class="stars">${generateStars(listing.rating)}</div><span>${(listing.rating || 0).toFixed(1)} (${listing.reviews} reviews)</span></div>
+                    </div>
+                </div>`;
+        }
+
+        function formatAmenity(amenity) {
+            const amenityMap = { 'wifi': 'WiFi', 'meals': 'Meals', 'laundry': 'Laundry', 'parking': 'Parking', 'ac': 'A/C', 'gym': 'Gym', 'kitchen': 'Kitchen', 'furnished': 'Furnished' };
+            return amenityMap[amenity.trim().toLowerCase()] || amenity.trim();
+        }
+
+        function generateStars(rating) {
+            rating = parseFloat(rating) || 0; const fullStars = Math.floor(rating); const hasHalfStar = rating % 1 >= 0.5; let stars = '';
+            for (let i = 0; i < fullStars; i++) stars += '<i class="fas fa-star"></i>';
+            if (hasHalfStar && fullStars < 5) stars += '<i class="fas fa-star-half-alt"></i>';
+            const emptyStars = 5 - Math.ceil(rating); for (let i = 0; i < emptyStars; i++) stars += '<i class="far fa-star"></i>'; return stars;
+        }
+
+        async function showListingDetail(listingId) {
+            try {
+                const response = await apiRequest(`listings/read_one.php?id=${listingId}`);
+                if (!response.success || !response.data) { showNotification('Could not load listing details.', 'error'); return; }
+                const listing = { ...response.data.listing, price: parseFloat(response.data.listing.price), amenities: response.data.listing.amenities ? response.data.listing.amenities.split(',') : [], map_link_or_embed: response.data.listing.map_link_or_embed, latitude: response.data.listing.latitude, longitude: response.data.listing.longitude };
+                const reviews = response.data.reviews.map(r => ({ ...r, rating: parseFloat(r.rating) })) || [];
+                
+                const detailModal = document.getElementById('listingDetailModal');
+                detailModal.dataset.currentListingId = listing.id; 
+
+                document.getElementById('detailModalTitle').textContent = listing.title;
+                const imageHtml = listing.primary_image_url ? `<img src="${listing.primary_image_url.startsWith('http') ? '' : ''}${listing.primary_image_url}" alt="${listing.title}" style="width:100%; max-height:300px; object-fit:cover; border-radius:var(--border-radius-md);">` : '<div class="listing-image" style="height: 250px; margin-bottom: 1rem;"><i class="fas fa-home"></i></div>';
+                
+                let mapDisplayHtml = '';
+                if (listing.map_link_or_embed) {
+                    if (listing.map_link_or_embed.toLowerCase().includes('<iframe')) {
+                        mapDisplayHtml = `<div class="embedded-map-container">${listing.map_link_or_embed.replace(/width="[^"]*"/g, 'width="100%"').replace(/height="[^"]*"/g, 'height="300"')}</div>`;
+                    } else if (listing.map_link_or_embed.toLowerCase().startsWith('http')) {
+                        mapDisplayHtml = `<p><a href="${encodeURI(listing.map_link_or_embed)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm"><i class="fas fa-map-marked-alt"></i> View Map Link</a></p>`;
+                    }
+                }
+                if (!mapDisplayHtml) { mapDisplayHtml = '<p>Map location not provided.</p>';}
+
+                const reviewsHtml = reviews.length > 0 ? reviews.map(review => `<div class="review-item"><div class="review-header"><strong>${review.user_name || 'Anonymous'}</strong><div class="stars">${generateStars(review.rating)}</div></div><p class="review-comment">${review.comment}</p><small class="review-date">${new Date(review.created_at).toLocaleDateString()}</small></div>`).join('') : '<p>No reviews yet for this listing.</p>';
+                const reviewFormHtml = appState.currentUser ? `<div class="review-form-container"><h5>Write a Review</h5><form onsubmit="handleSubmitReview(event, ${listing.id})" id="reviewForm"><div class="form-group"><label for="reviewRatingModal">Rating</label><select id="reviewRatingModal" required class="form-control"><option value="">Select Rating</option><option value="5">5 Stars</option><option value="4">4 Stars</option><option value="3">3 Stars</option><option value="2">2 Stars</option><option value="1">1 Star</option></select></div><div class="form-group"><label for="reviewCommentModal">Comment</label><textarea id="reviewCommentModal" rows="3" class="form-control" required></textarea></div><button type="submit" class="btn btn-primary" style="margin-top:1rem;">Submit Review</button></form></div>` : '<p style="margin-top:1.5rem; text-align:center;"><i>Please <a href="#" onclick="closeModal(\'listingDetailModal\'); showModal(\'loginModal\');">login</a> to write a review.</i></p>';
+                
+                document.getElementById('listingDetailContent').innerHTML = `${imageHtml}<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: 1.5rem;"><div><h3>${listing.title}</h3><p><i class="fas fa-map-marker-alt"></i> ${listing.location}, ${listing.city}</p><h3 style="color: var(--primary-color); font-size: 1.8rem; margin: 1rem 0;">${config.currencySymbol}${listing.price}<span style="font-size:1rem; color:var(--light-text-color);">/month</span></h3><p><strong>Gender Preference:</strong> ${formatAmenity(listing.gender_preference)}</p><h4>Description</h4><p>${listing.description || 'N/A'}</p></div><div><h4>Amenities</h4><div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom:1.5rem;">${Array.isArray(listing.amenities) && listing.amenities.length > 0 ? listing.amenities.map(amenity => `<span class="feature-tag">${formatAmenity(amenity)}</span>`).join('') : '<p>N/A</p>'}</div><h4>Contact Landlord</h4><p><strong>Landlord:</strong> ${listing.landlord_name || 'N/A'}</p><p><i class="fas fa-envelope"></i> ${listing.landlord_email || 'N/A'}</p><p><i class="fas fa-phone"></i> ${listing.landlord_contact_number || 'Not provided'}</p><div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top:1.5rem;"><button class="btn btn-primary btn-sm" onclick="contactOwner(${listing.id}, '${listing.landlord_email}')"><i class="fas fa-envelope"></i> Email</button>${listing.landlord_contact_number ? `<a href="tel:${listing.landlord_contact_number}" class="btn btn-outline btn-sm"><i class="fas fa-phone"></i> Call</a>` : ''}<button class="btn btn-outline btn-sm" onclick="addToFavorites(${listing.id})"><i class="fas fa-heart"></i> Favorite</button></div></div></div><div class="map-container" id="listingMapDiv">${mapDisplayHtml}</div><div style="margin-top: 2rem;"><h4>Reviews (${reviews.length})</h4><div id="listingReviewsContainer">${reviewsHtml}</div>${reviewFormHtml}</div>`;
+                showModal('listingDetailModal');
+            } catch (error) { /* Handled */ }
+        }
+        
+        async function searchListings(event) { 
+            if(event) event.preventDefault();
+            const location = document.getElementById('location').value.toLowerCase();
+            const priceRange = document.getElementById('priceRange').value;
+            const gender = document.getElementById('gender').value;
+            const queryParams = new URLSearchParams();
+            if (location) queryParams.append('search_term', location);
+            if (priceRange) { const [min, max] = priceRange.split('-'); queryParams.append('min_price', min); queryParams.append('max_price', max); }
+            if (gender) queryParams.append('gender', gender);
+            try {
+                const response = await apiRequest(`listings/read.php?${queryParams.toString()}`);
+                if (response.success && Array.isArray(response.data)) {
+                    appState.allListingsData = response.data.map(l => ({ ...l, price: parseFloat(l.price), amenities: l.amenities ? l.amenities.split(',') : [], rating: parseFloat(l.average_rating || 0), reviews: parseInt(l.review_count || 0), datePosted: new Date(l.created_at) }));
+                    appState.displayedListings = [...appState.allListingsData];
+                    showPage('listings'); 
+                    document.getElementById('filterSearchTerm').value = location; document.getElementById('filterGenderPage').value = gender;
+                } else { showNotification(response.message || 'Search failed.', 'error'); appState.displayedListings = []; showPage('listings'); }
+            } catch (error) { /* Handled */ }
+        }
+
+        async function applyFilters() { 
+            const searchTerm = document.getElementById('filterSearchTerm').value; const sortBy = document.getElementById('sortBy').value;
+            const gender = document.getElementById('filterGenderPage').value; const amenitiesFilter = document.getElementById('filterAmenities').value;
+            const queryParams = new URLSearchParams();
+            if (searchTerm) queryParams.append('search_term', searchTerm); if (sortBy) queryParams.append('sort_by', sortBy);
+            if (gender) queryParams.append('gender', gender); if (amenitiesFilter) queryParams.append('amenities', amenitiesFilter);
+            try {
+                const response = await apiRequest(`listings/read.php?${queryParams.toString()}`);
+                if (response.success && Array.isArray(response.data)) {
+                     appState.displayedListings = response.data.map(l => ({ ...l, price: parseFloat(l.price), amenities: l.amenities ? l.amenities.split(',') : [], rating: parseFloat(l.average_rating || 0), reviews: parseInt(l.review_count || 0), datePosted: new Date(l.created_at) }));
+                } else { appState.displayedListings = []; showNotification(response.message || 'Filtering failed.', 'error'); }
+                renderAllListingsPage(); 
+            } catch (error) { /* Handled */ }
+        }
+
+        async function handleSubmitReview(event, listingId) {
+            event.preventDefault();
+            if (!appState.currentUser) { showNotification('Log in to review.', 'error'); closeModal('listingDetailModal'); showModal('loginModal'); return; }
+            const form = document.getElementById('reviewForm');
+            const rating = parseInt(document.getElementById('reviewRatingModal').value);
+            const comment = document.getElementById('reviewCommentModal').value;
+            try {
+                const response = await apiRequest('reviews/create.php', 'POST', { listing_id: listingId, rating, comment });
+                if (response.success) { showNotification('Review submitted! (Pending approval)', 'success'); await showListingDetail(listingId); if(form) form.reset(); } 
+                else { showNotification(response.message || 'Failed to submit review.', 'error'); }
+            } catch (error) { /* Handled */ }
+        }
+
+        async function handleAddListing(event) {
+            event.preventDefault();
+            if (!appState.currentUser || (appState.currentUser.role !== 'landlord' && appState.currentUser.role !== 'admin')) { showNotification('Log in as landlord/admin.', 'error'); return; }
+            const form = document.getElementById('addListingForm'); const formData = new FormData(form);
+            try {
+                const response = await apiRequest('listings/create.php', 'POST', formData, true); 
+                if (response.success) {
+                    showNotification('Listing added! (May require approval)', 'success'); form.reset(); closeModal('addListingModal');
+                    await fetchAllListings(); 
+                    if(appState.currentPage === 'admin') loadAdminListings(); if(appState.currentPage === 'my-listings') loadMyListings();
+                } else { showNotification(response.message || 'Failed to add listing.', 'error'); }
+            } catch (error) { /* Handled */ }
+        }
+
+        function showAdminTab(event, tabName) {
+            document.querySelectorAll('#adminPage .tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('#adminPage .admin-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('admin' + tabName.charAt(0).toUpperCase() + tabName.slice(1) + 'Content').classList.add('active');
+            if(event && event.target) event.target.classList.add('active');
+            if (tabName === 'listings') loadAdminListings(); else if (tabName === 'users') loadAdminUsers(); else if (tabName === 'reviews') loadAdminReviews();
+        }
+        async function loadAdminData() { showAdminTab(null, 'listings'); }
+
+        async function loadAdminListings() {
+            const c = document.getElementById('adminListingsList'); c.innerHTML = '<p>Loading...</p>';
+            try {
+                const r = await apiRequest('listings/read.php?status=all');
+                if (r.success && Array.isArray(r.data)) {
+                    const ls = r.data.map(l => ({ ...l, price: parseFloat(l.price) }));
+                    c.innerHTML = `<table class="admin-table"><thead><tr><th>ID</th><th>Title</th><th>Landlord</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody>${ls.map(l => `<tr><td>${l.id}</td><td>${l.title}</td><td>${l.landlord_name || 'N/A'} (ID: ${l.user_id})</td><td>${config.currencySymbol}${l.price.toFixed(2)}</td><td><span class="status-badge ${l.status}">${l.status}</span></td><td class="actions-cell"><button class="btn btn-sm btn-outline" onclick="editListing(${l.id})"><i class="fas fa-edit"></i></button><button class="btn btn-sm" style="background:#dc3545;color:white;" onclick="deleteListing(${l.id},true)"><i class="fas fa-trash"></i></button>${l.status==='pending'?`<button class="btn btn-sm btn-primary" onclick="approveListing(${l.id})"><i class="fas fa-check"></i>Approve</button>`:''}</td></tr>`).join('')}</tbody></table>`;
+                    if(ls.length === 0) c.innerHTML = "<p>No listings.</p>";
+                } else { c.innerHTML = `<p>Error: ${r.message || 'Unknown'}</p>`; }
+            } catch (e) { c.innerHTML = `<p>Error loading.</p>`; }
+        }
+        async function loadAdminUsers() {
+            const c = document.getElementById('adminUsersList'); c.innerHTML = '<p>Loading...</p>';
+            try {
+                const r = await apiRequest('users/read.php');
+                if (r.success && Array.isArray(r.data)) {
+                    c.innerHTML = `<table class="admin-table"><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Contact</th><th>Joined</th><th>Actions</th></tr></thead><tbody>${r.data.map(u => `<tr><td>${u.id}</td><td>${u.name}</td><td>${u.email}</td><td><span class="role-badge ${u.role}">${u.role}</span></td><td>${u.contact_number || 'N/A'}</td><td>${new Date(u.created_at).toLocaleDateString()}</td><td class="actions-cell">${u.role!=='admin'?`<button class="btn btn-sm" style="background:#dc3545;color:white;" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>`:'N/A'}</td></tr>`).join('')}</tbody></table>`;
+                    if(r.data.length === 0) c.innerHTML = "<p>No users.</p>";
+                } else { c.innerHTML = `<p>Error: ${r.message || 'Unknown'}</p>`; }
+            } catch (e) { c.innerHTML = `<p>Error loading.</p>`; }
+        }
+        async function loadAdminReviews() {
+            const c = document.getElementById('adminReviewsList'); c.innerHTML = '<p>Loading...</p>';
+            try {
+                const r = await apiRequest('reviews/read.php?status=all');
+                if (r.success && Array.isArray(r.data)) {
+                    c.innerHTML = `<table class="admin-table"><thead><tr><th>ID</th><th>User</th><th>Listing</th><th>Rating</th><th>Comment</th><th>Status</th><th>Actions</th></tr></thead><tbody>${r.data.map(rv => `<tr><td>${rv.id}</td><td>${rv.user_name||'N/A'}(ID:${rv.user_id})</td><td>${rv.listing_id}(${rv.listing_title||'N/A'})</td><td><div class="stars">${generateStars(rv.rating)}</div></td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${rv.comment}">${rv.comment}</td><td><span class="status-badge ${rv.status}">${rv.status}</span></td><td class="actions-cell"><button class="btn btn-sm" style="background:#dc3545;color:white;" onclick="deleteReview(${rv.id},true)"><i class="fas fa-trash"></i></button>${rv.status==='pending'?`<button class="btn btn-sm btn-primary" onclick="approveReview(${rv.id})"><i class="fas fa-check"></i>Approve</button>`:''}</td></tr>`).join('')}</tbody></table>`;
+                    if(r.data.length === 0) c.innerHTML = "<p>No reviews.</p>";
+                } else { c.innerHTML = `<p>Error: ${r.message || 'Unknown'}</p>`; }
+            } catch (e) { c.innerHTML = `<p>Error loading.</p>`; }
+        }
+
+        function contactOwner(listingId, landlordEmail) {
+            if (!appState.currentUser) { showNotification('Log in to contact owner.', 'info'); closeModal('listingDetailModal'); showModal('loginModal'); return; }
+            if (landlordEmail) { window.location.href = `mailto:${landlordEmail}?subject=Inquiry about listing ID: ${listingId}`; } 
+            else { showNotification('Landlord email not available.', 'error'); }
+        }
+        function addToFavorites(listingId) {
+            if (!appState.currentUser) { showNotification('Log in to add favorites.', 'info'); closeModal('listingDetailModal'); showModal('loginModal'); return; }
+            showNotification(`Listing ${listingId} favorited (simulated).`, 'success');
+        }
+        function editListing(listingId) { 
+            const l = appState.allListingsData.find(li => li.id === listingId); if(!l) return;
+            showNotification(`Editing ${l.id}: ${l.title} (populate form). Feature under development.`, 'info');
+        }
+        async function deleteListing(listingId, isAdmin = false) {
+            if (!appState.currentUser) return;
+            const l = appState.allListingsData.find(li => li.id == listingId); if(!l) {console.warn("Listing not found in appState for deletion:", listingId); return;}
+            if (appState.currentUser.role !== 'admin' && l.user_id != appState.currentUser.id) { showNotification('Unauthorized.', 'error'); return; }
+            if (confirm('Delete this listing? This action cannot be undone.')) {
+                try {
+                    const r = await apiRequest(`listings/delete.php`, 'POST', { id: listingId });
+                    if (r.success) { showNotification('Listing deleted.', 'success'); await fetchAllListings(); if(isAdmin && appState.currentPage === 'admin') loadAdminListings(); else if(!isAdmin && appState.currentPage === 'my-listings') loadMyListings(); } 
+                    else { showNotification(r.message || 'Delete failed.', 'error'); }
+                } catch (e) { /* Handled */ }
+            }
+        }
+        async function deleteUser(userId) { 
+            if (appState.currentUser?.role !== 'admin' || userId == appState.currentUser.id) { showNotification(userId == appState.currentUser.id ? 'Cannot delete self.' : 'Unauthorized.', 'warning'); return; }
+            if (confirm('Delete this user and all their data (listings, reviews)? This cannot be undone.')) {
+                 try {
+                    const r = await apiRequest(`users/delete.php`, 'POST', { id: userId });
+                    if (r.success) { showNotification('User deleted.', 'success'); loadAdminUsers(); await fetchAllListings(); } 
+                    else { showNotification(r.message || 'Delete failed.', 'error'); }
+                } catch (e) { /* Handled */ }
+            }
+        }
+        async function deleteReview(reviewId, isAdmin = false) {
+            if (!appState.currentUser || (appState.currentUser.role !== 'admin' && !isAdmin)) { showNotification('Unauthorized.', 'error'); return; }
+            if (confirm('Delete this review?')) {
+                try {
+                    const r = await apiRequest(`reviews/delete.php`, 'POST', { id: reviewId });
+                    if (r.success) { showNotification('Review deleted.', 'success'); if(isAdmin && appState.currentPage === 'admin') loadAdminReviews(); } 
+                    else { showNotification(r.message || 'Delete failed.', 'error'); }
+                } catch (e) { /* Handled */ }
+            }
+        }
+        async function approveListing(listingId) {
+            if(appState.currentUser?.role !== 'admin') return;
+            if (confirm('Approve this listing? It will become publicly visible.')) {
+                try {
+                    const r = await apiRequest('listings/update_status.php', 'POST', {id: listingId, status: 'available'});
+                    if(r.success) { showNotification('Listing approved!', 'success'); loadAdminListings(); } 
+                    else { showNotification(r.message || 'Failed.', 'error'); }
+                } catch (e) { /* Handled */ }
+            }
+        }
+        async function approveReview(reviewId) {
+             if(appState.currentUser?.role !== 'admin') return;
+            if (confirm('Approve this review? It will become publicly visible.')) {
+                 try {
+                    const r = await apiRequest('reviews/update_status.php', 'POST', {id: reviewId, status: 'approved'});
+                    if(r.success) { showNotification('Review approved!', 'success'); loadAdminReviews(); } 
+                    else { showNotification(r.message || 'Failed.', 'error'); }
+                } catch (e) { /* Handled */ }
+            }
+        }
+
+        function loadUserProfile() {
+            const c = document.getElementById('userProfileContent');
+            if (!appState.currentUser) { c.innerHTML = '<p>Log in to view profile.</p>'; showPage('home'); showModal('loginModal'); return; }
+            c.innerHTML = `<h4>Hi, ${appState.currentUser.name}!</h4><p><strong>Email:</strong> ${appState.currentUser.email}</p><p><strong>Role:</strong> ${appState.currentUser.role.charAt(0).toUpperCase() + appState.currentUser.role.slice(1)}</p><p><strong>Contact Number:</strong> ${appState.currentUser.contact_number || 'Not provided'}</p><p style="margin-top:1.5rem;"><em><a href="#" onclick="alert('Edit profile feature coming soon!')" class="btn btn-outline btn-sm">Edit Profile</a></em></p>`;
+        }
+        async function loadMyListings() {
+            const gridDiv = document.getElementById('myListingsGrid');
+            if (!appState.currentUser || appState.currentUser.role !== 'landlord') { gridDiv.innerHTML = '<p>This section is for landlords. Please log in as a landlord.</p>'; if(!appState.currentUser) showModal('loginModal'); return; }
+            gridDiv.innerHTML = '<p>Loading your listings...</p>';
+            try {
+                const r = await apiRequest(`listings/read.php?user_id=${appState.currentUser.id}&status=all`);
+                if (r.success && Array.isArray(r.data)) {
+                    const ls = r.data.map(l => ({ ...l, price: parseFloat(l.price), amenities: l.amenities ? l.amenities.split(',') : [], rating: parseFloat(l.average_rating || 0), reviews: parseInt(l.review_count || 0), datePosted: new Date(l.created_at) }));
+                    if (ls.length === 0) { gridDiv.innerHTML = `<p>You haven't added any listings yet.</p>`; return; }
+                    gridDiv.innerHTML = `<div class="listings-grid">${ls.map(l => `<div class="listing-card"><div class="listing-image">${l.primary_image_url ? `<img src="${l.primary_image_url.startsWith('http') ? '' : ''}${l.primary_image_url}" alt="${l.title}">` : '<i class="fas fa-home"></i>'}</div><div class="listing-content"><h3 class="listing-title">${l.title}</h3><p class="listing-price">${config.currencySymbol}${l.price.toFixed(2)}<span>/month</span></p><p>Status: <span class="status-badge ${l.status}">${l.status}</span></p><div style="margin-top:1rem;display:flex;gap:0.5rem;"><button class="btn btn-sm btn-outline" onclick="editListing(${l.id})"><i class="fas fa-edit"></i> Edit</button><button class="btn btn-sm" style="background:#dc3545;color:white;" onclick="deleteListing(${l.id})"><i class="fas fa-trash"></i> Delete</button></div></div></div>`).join('')}</div>`;
+                } else { gridDiv.innerHTML = `<p>Could not load your listings: ${r.message || 'Unknown error'}</p>`; }
+            } catch (e) { gridDiv.innerHTML = `<p>Error loading listings.</p>`; }
+        }
+
+        function showNotification(message, type = 'info') {
+            const nArea = document.body; const n = document.createElement('div');
+            n.className = `notification ${type}`; n.textContent = message; nArea.appendChild(n);
+            setTimeout(() => { n.classList.add('show'); }, 10);
+            setTimeout(() => { n.classList.remove('show'); setTimeout(() => { n.remove(); }, 500); }, 3000 + (message.length * 25));
+        }
+        async function submitContact(event) {
+            event.preventDefault(); const form = document.getElementById('contactForm');
+            const name = document.getElementById('contactName').value; const email = document.getElementById('contactEmail').value;
+            const subject = document.getElementById('contactSubject').value; const message = document.getElementById('contactMessage').value;
+            try {
+                const r = await apiRequest('contact/send_message.php', 'POST', { name, email, subject, message });
+                if (r.success) { showNotification(r.message || 'Message sent!', 'success'); form.reset(); } 
+                else { showNotification(r.message || 'Failed to send message.', 'error'); }
+            } catch (e) { /* Handled by apiRequest */ }
+        }
+
+        function updateCurrencyDisplay() {
+            // Search form on homepage
+            const priceRangeLabel = document.querySelector('label[for="priceRange"]');
+            if (priceRangeLabel) {
+                priceRangeLabel.innerHTML = `Price Range (${config.currencyCode}/month)`;
+            }
+            const priceRangeSelect = document.getElementById('priceRange');
+            if (priceRangeSelect) {
+                priceRangeSelect.options[1].text = `Under ${config.currencySymbol}50`;
+                priceRangeSelect.options[2].text = `${config.currencySymbol}50 - ${config.currencySymbol}100`;
+                priceRangeSelect.options[3].text = `${config.currencySymbol}100 - ${config.currencySymbol}150`;
+                priceRangeSelect.options[4].text = `${config.currencySymbol}150+`;
+            }
+            
+            // "Add Listing" Modal
+            const addListingPriceLabel = document.querySelector('label[for="addListingPrice"]');
+            if (addListingPriceLabel) {
+                addListingPriceLabel.innerHTML = `Price (${config.currencyCode}/month)`;
+            }
+        }
+        
+        const MAX_FILES_ALLOWED = 5; 
+        if (addListingImagesInput && imagePreviewContainer) {
+            addListingImagesInput.addEventListener('change', function(event) {
+                imagePreviewContainer.innerHTML = ''; 
+                if (this.files.length > MAX_FILES_ALLOWED) {
+                    showNotification(`You can only upload up to ${MAX_FILES_ALLOWED} images.`, 'warning');
+                    this.value = ""; return;
+                }
+                for (let i = 0; i < this.files.length; i++) {
+                    const file = this.files[i];
+                    if (file) {
+                        if (!file.type.startsWith('image/')) { showNotification(`File "${file.name}" is not valid image.`, 'warning'); continue; }
+                        if (file.size > 2 * 1024 * 1024) { showNotification(`File "${file.name}" exceeds 2MB.`, 'warning'); continue; }
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const img = document.createElement('img'); img.src = e.target.result;
+                            img.style.cssText = 'max-width:100px; max-height:100px; margin:5px; object-fit:cover; border:1px solid #ddd; border-radius:4px;';
+                            imagePreviewContainer.appendChild(img);
+                        }
+                        reader.readAsDataURL(file);
+                    }
+                }
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
